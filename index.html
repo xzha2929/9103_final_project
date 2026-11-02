@@ -1,18 +1,49 @@
-<!DOCTYPE html>
+!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <title>Sketch</title>
+    <title>Perlin Sunset Prototype</title>
 
-    <link rel="stylesheet" type="text/css" href="style.css">
+    <link rel="stylesheet" href="style.css" />
 
-    <script src="libraries/p5.min.js"></script>
-    <script src="libraries/p5.sound.min.js"></script>
+    <!-- p5.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.10/lib/p5.min.js"></script>
+
+    <!-- Our animation class -->
+    <script src="perlin-environment.js"></script>
+
+    <!-- Main p5 program -->
+    <script src="sketch.js"></script>
   </head>
 
   <body>
-    <script src="sketch.js"></script>
+    <main>
+      <!-- p5 canvas will be placed here -->
+      <div id="canvas-container"></div>
+
+      <section class="instructions">
+        <span>
+          <strong>Move left / right</strong>
+          — gentle cloud breeze
+        </span>
+
+        <span>
+          <strong>Automatic</strong>
+          — sun slowly rises
+        </span>
+
+        <span>
+          <strong>Click</strong>
+          — pause / play
+        </span>
+
+        <span>
+          <strong>Press R</strong>
+          — restart variation
+        </span>
+      </section>
+    </main>
   </body>
 </html>
