@@ -1,7 +1,9 @@
 class PerlinEnvironment {
   constructor(options) {
     this.background = options.background;
-    this.smallClouds = options.smallClouds;
+    this.whiteClouds = options.whiteClouds;
+    this.redHighClouds = options.redHighClouds;
+    this.redMidClouds = options.redMidClouds;
     this.largeClouds = options.largeClouds;
     this.water = options.water;
     this.sun = options.sun;
@@ -10,9 +12,14 @@ class PerlinEnvironment {
     this.seed = options.seed;
 
     this.time = 0;
+    this.largeCloudTime = 0;
+    this.largeCloudSpeed = 1;
     this.wind = 0;
     this.paused = false;
     this.cloudPhase = 0;
+    this.whiteCloudPhase = 0;
+    this.midCloudPhase = 0;
+    this.frontCloudPhase = 0;
     this.waterPhase = 0;
     this.grassPhase = 0;
   }
@@ -23,13 +30,18 @@ class PerlinEnvironment {
 
     // Random values give every seed a repeatable starting variation.
     this.cloudPhase = random(1000);
+    this.whiteCloudPhase = random(1000);
+    this.midCloudPhase = random(1000);
+    this.frontCloudPhase = random(1000);
     this.waterPhase = random(1000);
     this.grassPhase = random(1000);
   }
 
   update() {
     if (!this.paused) {
-      this.time += deltaTime / 1000;
+      const seconds = deltaTime / 1000;
+      this.time += seconds;
+      this.largeCloudTime += seconds * this.largeCloudSpeed;
     }
   }
 
@@ -44,48 +56,116 @@ class PerlinEnvironment {
   }
 
   drawClouds() {
+    // Draw from farthest to nearest to create a visible parallax effect.
+    this.drawWhiteClouds();
     this.drawLargeClouds();
-    this.drawSmallClouds();
+    this.drawMidClouds();
+    this.drawFrontClouds();
+  }
+
+  drawWhiteClouds() {
+    // Two translucent copies travel in opposite directions. This separates the
+    // pale brush marks into a soft, slightly disordered background cloud field.
+    const xBack =
+      sin(this.time * 0.11 + this.whiteCloudPhase) * 22 -
+      this.wind * 7;
+    const yBack = map(
+      noise(this.whiteCloudPhase, this.time * 0.025),
+      0,
+      1,
+      -4,
+      4
+    );
+
+    push();
+    imageMode(CENTER);
+    translate(width / 2 + xBack, height / 2 + yBack);
+    tint(255, 126);
+    image(this.whiteClouds, 0, 0, width, height);
+    pop();
+
+    const xFront =
+      cos(this.time * 0.14 + this.whiteCloudPhase + 1.6) * 30 +
+      this.wind * 9;
+    const yFront = sin(this.time * 0.09 + this.whiteCloudPhase) * 6;
+
+    push();
+    imageMode(CENTER);
+    translate(width / 2 + xFront, height / 2 + yFront);
+    tint(255, 112);
+    image(this.whiteClouds, 0, 0, width, height);
+    pop();
   }
 
   drawLargeClouds() {
     push();
     imageMode(CENTER);
 
-    // The broad background cloud only drifts sideways. It does not scale.
-    const horizontalDrift =
-      sin(this.time * 0.09 + this.cloudPhase) * 4 +
-      map(noise(this.cloudPhase + this.time * 0.025), 0, 1, -3, 3);
-    translate(
-      width / 2 + horizontalDrift + this.wind * 5,
-      height / 2
+    // The enlarged cloud crosses the full canvas from left to right.
+    // Starting and ending outside the frame hides the loop reset.
+    const travelDuration = 60;
+    const travel = (0.18 + this.largeCloudTime / travelDuration) % 1;
+    const horizontalDrift = lerp(
+      -width * 1.02,
+      width * 0.62,
+      travel
     );
-    tint(255, 242);
+    const verticalDrift = map(
+      noise(this.cloudPhase + 20, this.largeCloudTime * 0.025),
+      0,
+      1,
+      -10,
+      10
+    );
+    const cloudScale =
+      1.18 + sin(this.largeCloudTime * 0.06 + this.cloudPhase) * 0.025;
+
+    translate(
+      width / 2 + horizontalDrift,
+      height / 2 + verticalDrift
+    );
+    scale(cloudScale);
+    tint(255, 238);
     image(this.largeClouds, 0, 0, width, height);
     pop();
   }
 
-  drawSmallClouds() {
+  drawMidClouds() {
     push();
     imageMode(CENTER);
 
-    // The separate small clouds move slowly forward and backward in depth.
-    const depthCycle = (sin(this.time * 0.11 - HALF_PI) + 1) / 2;
-    const easedDepth = depthCycle * depthCycle * (3 - 2 * depthCycle);
-    const depthScale = lerp(0.94, 1.075, easedDepth);
-    const horizontalDrift = lerp(-10, 12, easedDepth) + this.wind * 7;
-    const verticalDrift = map(
-      noise(this.cloudPhase + 300, this.time * 0.035),
-      0,
-      1,
-      -3,
-      3
-    );
+    // The middle fragments float more quickly and also bob vertically.
+    const x =
+      sin(this.time * 0.18 + this.midCloudPhase) * 34 +
+      this.wind * 16;
+    const y = cos(this.time * 0.13 + this.midCloudPhase) * 10;
+    const layerScale =
+      1.015 + sin(this.time * 0.065 + this.midCloudPhase) * 0.025;
 
-    translate(width / 2 + horizontalDrift, height / 2 + verticalDrift);
+    translate(width / 2 + x, height / 2 + y);
+    scale(layerScale);
+    tint(255, 218);
+    image(this.redMidClouds, 0, 0, width, height);
+    pop();
+  }
+
+  drawFrontClouds() {
+    push();
+    imageMode(CENTER);
+
+    // Nearest cloud pieces have the clearest travel and depth change.
+    const depthCycle = (sin(this.time * 0.24 + this.frontCloudPhase) + 1) / 2;
+    const easedDepth = depthCycle * depthCycle * (3 - 2 * depthCycle);
+    const depthScale = lerp(0.93, 1.10, easedDepth);
+    const x = lerp(-58, 58, easedDepth) + this.wind * 20;
+    const y =
+      sin(this.time * 0.16 + this.frontCloudPhase) * 12 +
+      map(noise(this.frontCloudPhase + 40, this.time * 0.04), 0, 1, -4, 4);
+
+    translate(width / 2 + x, height / 2 + y);
     scale(depthScale);
-    tint(255, 235);
-    image(this.smallClouds, 0, 0, width, height);
+    tint(255, 224);
+    image(this.redHighClouds, 0, 0, width, height);
     pop();
   }
 
@@ -196,6 +276,10 @@ class PerlinEnvironment {
     this.wind = value;
   }
 
+  setLargeCloudSpeed(value) {
+    this.largeCloudSpeed = constrain(value, 0.2, 2);
+  }
+
   togglePause() {
     this.paused = !this.paused;
   }
@@ -203,6 +287,7 @@ class PerlinEnvironment {
   reset(newSeed) {
     this.seed = newSeed;
     this.time = 0;
+    this.largeCloudTime = 0;
     this.build();
   }
 }
