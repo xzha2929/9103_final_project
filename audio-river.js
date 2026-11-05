@@ -1,12 +1,4 @@
-/*
- * AI acknowledgement:
- * Generated with the help of ChatGPT.
- * Audio amplitude controls travelling waves, foam and spray.
- *
- * References:
- * https://v1.p5js.org/reference/p5.sound/
- * https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D
- */
+
 
 class AudioRiver {
   constructor(painting) {
