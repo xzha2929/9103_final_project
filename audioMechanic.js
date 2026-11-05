@@ -1,16 +1,15 @@
 /*
  * AI acknowledgement:
  * Generated with the help of ChatGPT.
- * This mechanic analyzes audio amplitude and creates
- * forward-moving water waves using image displacement
- * and subtle traveling highlights.
+ * Audio amplitude controls traveling waves, foam, and spray.
+ * The person and rock are restored as a static foreground layer.
  *
- * External references:
+ * References:
  * https://v1.p5js.org/reference/p5.sound/
- * Uses loadSound(), p5.Amplitude, and userStartAudio().
+ * Audio playback and amplitude analysis.
  *
- * https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/clip
- * Restricts the animation to the water surface.
+ * https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D
+ * Image drawing and polygon clipping.
  */
 
 class AudioRiver {
@@ -30,8 +29,10 @@ class AudioRiver {
     this.level = 0;
     this.phase = 0;
 
-    // Approximate water boundary for the original painting.
-    // The indentation excludes the person and the rock.
+    this.waveCount = 5;
+    this.maximumDisplacement = 25;
+
+    // Approximate water boundary for the supplied painting.
     this.waterOutline = [
       [0.000, 0.770],
       [0.250, 0.777],
@@ -53,33 +54,24 @@ class AudioRiver {
       [0.000, 0.900]
     ];
 
-    // Increase this value for stronger displacement.
-    // Values are measured relative to a 1000-pixel-wide canvas.
-    this.maximumDisplacement = 24;
-
-    // Number of traveling wave fronts across the water.
-    this.waveCount = 3.2;
-
-    // Source pixels sampled from a water-only rectangle.
-    // This avoids pulling the person or shoreline into the waves.
-    this.texture = this.createWaterTexture();
-  }
-
-  createWaterTexture() {
-    const source = this.painting;
-
-    return source.get(
-      Math.round(source.width * 0.01),
-      Math.round(source.height * 0.785),
-      Math.round(source.width * 0.17),
-      Math.round(source.height * 0.065)
-    );
+    // Protect the person, rock, and a small surrounding margin.
+    this.foregroundOutline = [
+      [0.295, 0.780],
+      [0.350, 0.780],
+      [0.360, 0.825],
+      [0.385, 0.850],
+      [0.385, 0.905],
+      [0.340, 0.915],
+      [0.185, 0.915],
+      [0.180, 0.860],
+      [0.205, 0.835],
+      [0.290, 0.830]
+    ];
   }
 
   load(path) {
     this.track = loadSound(
       path,
-
       () => {
         this.amplitude = new p5.Amplitude(0.65);
         this.amplitude.setInput(this.track);
@@ -87,7 +79,6 @@ class AudioRiver {
         this.ready = true;
         this.message = "Ready. Click Play Audio.";
       },
-
       (error) => {
         this.failed = true;
         this.message =
@@ -110,6 +101,7 @@ class AudioRiver {
     this.busy = true;
 
     try {
+      // Start the audio context through a user interaction.
       await userStartAudio();
 
       if (this.track.isPlaying()) {
@@ -118,7 +110,7 @@ class AudioRiver {
       } else {
         this.track.loop();
         this.message =
-          "Playing. Loudness controls wave strength and forward motion.";
+          "Playing. Loudness controls waves, foam, and spray.";
       }
     } catch (error) {
       this.message = "Unable to start audio. Please try again.";
@@ -132,28 +124,27 @@ class AudioRiver {
     let target = 0;
 
     if (this.isPlaying()) {
-      const amplitude = this.amplitude.getLevel();
-
-      // Compress the response so quieter passages remain visible.
       target = Math.pow(
-        constrain(amplitude * this.sensitivity, 0, 1),
-        0.75
+        constrain(
+          this.amplitude.getLevel() * this.sensitivity,
+          0,
+          1
+        ),
+        0.8
       );
     }
 
     const seconds =
       constrain(elapsedMilliseconds, 0, 50) / 1000;
 
-    // Fast attack and slower release produce readable waves.
-    const response = target > this.level ? 12 : 3.5;
+    // Fast attack and slower release prevent abrupt movement.
+    const response = target > this.level ? 11 : 3;
     const smoothing = 1 - Math.exp(-seconds * response);
 
     this.level = lerp(this.level, target, smoothing);
 
-    // Positive phase motion moves wave fronts toward the foreground.
-    this.phase += seconds * (
-      0.65 + this.level * 2.1
-    );
+    // Louder audio increases forward movement speed.
+    this.phase += seconds * (0.055 + this.level * 0.15);
   }
 
   draw() {
@@ -164,185 +155,26 @@ class AudioRiver {
     const context = drawingContext;
 
     context.save();
-    this.clipToWater(context);
 
-    this.drawDisplacedWater();
-    this.drawWaveHighlights();
-
-    context.restore();
-  }
-
-  drawDisplacedWater() {
-    const context = drawingContext;
-
-    const top = height * 0.770;
-    const bottom = height * 0.905;
-    const waterHeight = bottom - top;
-
-    const sourceScaleY = this.painting.height / height;
-    const canvasScale = width / 1000;
-
-    // One destination row per pixel prevents gaps between strips.
-    const stripHeight = 1;
-
-    for (let y = top; y < bottom; y += stripHeight) {
-      const depth = constrain(
-        (y - top) / waterHeight,
-        0,
-        1
-      );
-
-      // Compress wave spacing near the horizon.
-      const perspectiveDepth = Math.sqrt(depth);
-      const angle =
-        perspectiveDepth * TWO_PI * this.waveCount
-        - this.phase;
-
-      const mainWave = Math.sin(angle);
-      const detailWave = Math.sin(angle * 2.3 + 0.7);
-
-      // Keep the horizon stable while strengthening nearby waves.
-      const horizonFade = smoothstep(0, 0.13, depth);
-      const perspectiveStrength = Math.pow(depth, 0.8);
-
-      const strength =
-        this.level
-        * horizonFade
-        * perspectiveStrength;
-
-      const displacement =
-        (
-          mainWave * 0.82
-          + detailWave * 0.18
-        )
-        * this.maximumDisplacement
-        * canvasScale
-        * strength;
-
-      const horizontalShift =
-        Math.sin(angle * 0.65)
-        * 9
-        * canvasScale
-        * strength;
-
-      const sourceY = constrain(
-        (y + displacement) * sourceScaleY,
-        0,
-        this.painting.height - sourceScaleY
-      );
-
-      // Fade the deformation in with the audio.
-      context.globalAlpha = Math.min(1, this.level * 4);
-
-      context.drawImage(
-        this.painting.canvas,
-        0,
-        sourceY,
-        this.painting.width,
-        sourceScaleY,
-        horizontalShift,
-        y,
-        width,
-        stripHeight
-      );
-
-      // Add a faint moving water texture near the foreground.
-      // The texture is sampled only from water, avoiding land smears.
-      if (depth > 0.2) {
-        const textureY =
-          (
-            perspectiveDepth * this.texture.height * 2
-            - this.phase * 5
-          ) % this.texture.height;
-
-        const wrappedY =
-          (textureY + this.texture.height)
-          % this.texture.height;
-
-        context.globalAlpha =
-          this.level * perspectiveStrength * 0.12;
-
-        context.drawImage(
-          this.texture.canvas,
-          0,
-          Math.floor(wrappedY),
-          this.texture.width,
-          1,
-          0,
-          y,
-          width,
-          stripHeight
-        );
-      }
-    }
-
-    context.globalAlpha = 1;
-  }
-
-  drawWaveHighlights() {
-    const top = height * 0.770;
-    const bottom = height * 0.905;
-    const waterHeight = bottom - top;
+    // Animate only the water, excluding the protected foreground.
+    this.clipAnimationRegion(context);
 
     push();
-    noFill();
 
-    // Each crest emerges near the horizon and advances forward.
-    const cycle = this.phase / TWO_PI;
-
-    for (let index = 0; index < 8; index++) {
-      const progress =
-        ((cycle + index / 8) % 1 + 1) % 1;
-
-      // Squared progress creates perspective:
-      // distant crests are closer together.
-      const depth = progress * progress;
-      const y = top + depth * waterHeight;
-
-      const fade =
-        Math.sin(progress * Math.PI)
-        * this.level;
-
-      const alpha = fade * 48;
-      const segmentWidth =
-        lerp(18, 110, depth) * width / 1000;
-
-      strokeWeight(lerp(0.6, 1.8, depth));
-      stroke(255, 222, 191, alpha);
-
-      // Broken lines retain a softer, painted appearance.
-      for (let segment = 0; segment < 10; segment++) {
-        const centerX =
-          (
-            segment * 0.085
-            + Math.sin(index * 2.1) * 0.025
-          ) * width;
-
-        beginShape();
-
-        for (let step = 0; step <= 12; step++) {
-          const fraction = step / 12;
-          const x =
-            centerX + fraction * segmentWidth;
-
-          const curve =
-            Math.sin(fraction * Math.PI)
-            * lerp(0.5, 3, depth);
-
-          vertex(x, y + curve);
-        }
-
-        endShape();
-      }
+    try {
+      this.drawDisplacement();
+      this.drawBreakingWaves();
+    } finally {
+      pop();
+      context.restore();
     }
 
-    pop();
+    // Keep the person and rock unchanged above all animated layers.
+    this.drawProtectedForeground();
   }
 
-  clipToWater(context) {
-    context.beginPath();
-
-    this.waterOutline.forEach(([nx, ny], index) => {
+  addPolygonPath(context, outline) {
+    outline.forEach(([nx, ny], index) => {
       const x = nx * width;
       const y = ny * height;
 
@@ -354,16 +186,274 @@ class AudioRiver {
     });
 
     context.closePath();
-    context.clip();
   }
-}
 
-// Smoothly transitions from 0 to 1 across the specified range.
-function smoothstep(edge0, edge1, value) {
-  const amount = Math.max(
-    0,
-    Math.min(1, (value - edge0) / (edge1 - edge0))
-  );
+  clipAnimationRegion(context) {
+    // First restrict drawing to the water.
+    context.beginPath();
+    this.addPolygonPath(context, this.waterOutline);
+    context.clip();
 
-  return amount * amount * (3 - 2 * amount);
+    // Then remove the protected foreground from that region.
+    context.beginPath();
+    context.rect(0, 0, width, height);
+    this.addPolygonPath(context, this.foregroundOutline);
+    context.clip("evenodd");
+  }
+
+  drawDisplacement() {
+    const context = drawingContext;
+
+    const top = height * 0.770;
+    const bottom = height * 0.905;
+    const waterHeight = bottom - top;
+
+    const sourceScaleY = this.painting.height / height;
+    const canvasScale = width / 1000;
+
+    context.save();
+    context.globalAlpha = Math.min(1, this.level * 3);
+
+    for (let y = top; y < bottom; y += 1) {
+      const depth = constrain(
+        (y - top) / waterHeight,
+        0,
+        1
+      );
+
+      const perspective = Math.sqrt(depth);
+
+      const angle =
+        (perspective - this.phase)
+        * TWO_PI
+        * this.waveCount;
+
+      const edgeFade =
+        Math.min(1, depth / 0.12)
+        * Math.min(1, (1 - depth) / 0.08);
+
+      const strength =
+        this.level
+        * Math.pow(depth, 0.75)
+        * edgeFade;
+
+      // Layered sine waves create a steeper wave face.
+      const wave =
+        Math.sin(angle)
+        + Math.sin(angle * 2 + 0.5) * 0.28;
+
+      const offsetY =
+        wave
+        * this.maximumDisplacement
+        * canvasScale
+        * strength;
+
+      const sourceY = constrain(
+        (y + offsetY) * sourceScaleY,
+        top * sourceScaleY,
+        bottom * sourceScaleY - sourceScaleY
+      );
+
+      context.drawImage(
+        this.painting.canvas,
+        0,
+        sourceY,
+        this.painting.width,
+        sourceScaleY,
+        0,
+        y,
+        width,
+        1
+      );
+    }
+
+    context.restore();
+  }
+
+  drawBreakingWaves() {
+    const top = height * 0.770;
+    const waterHeight = height * 0.135;
+    const scale = width / 1000;
+
+    for (let index = 0; index < this.waveCount; index++) {
+      const progress =
+        (this.phase + index / this.waveCount) % 1;
+
+      // Perspective increases wave spacing toward the foreground.
+      const depth = progress * progress;
+      const baseY = top + depth * waterHeight;
+
+      const life = Math.pow(
+        Math.sin(progress * Math.PI),
+        0.7
+      );
+
+      const strength = this.level * life;
+      const perspective = lerp(0.2, 1, depth);
+
+      const crestHeight =
+        (2 + this.level * 13)
+        * perspective
+        * scale;
+
+      const crest = (x) => {
+        return baseY
+          + Math.sin(x * 0.012 + index * 1.9)
+            * crestHeight
+          + Math.sin(x * 0.036 + index)
+            * crestHeight * 0.22;
+      };
+
+      // A soft shadow gives the wave face more depth.
+      noFill();
+      stroke(65, 112, 135, strength * 65);
+      strokeWeight((2 + depth * 6) * scale);
+
+      beginShape();
+
+      for (let x = 0; x <= width; x += 6) {
+        vertex(
+          x,
+          crest(x) + 4 * perspective * scale
+        );
+      }
+
+      endShape();
+
+      // A translucent ribbon suggests a curling wave crest.
+      noStroke();
+      fill(225, 237, 221, strength * 37);
+
+      beginShape();
+
+      for (let x = 0; x <= width; x += 6) {
+        vertex(x, crest(x));
+      }
+
+      for (let x = width; x >= 0; x -= 6) {
+        const ribbonWidth =
+          (2 + this.level * 8)
+          * perspective
+          * scale;
+
+        vertex(x, crest(x) + ribbonWidth);
+      }
+
+      endShape(CLOSE);
+
+      this.drawFoam(
+        index,
+        crest,
+        strength,
+        perspective,
+        scale
+      );
+    }
+  }
+
+  drawFoam(index, crest, strength, perspective, scale) {
+    const spacing = 13 * scale;
+    const sampleCount = Math.ceil(width / spacing);
+
+    for (let sample = 0; sample < sampleCount; sample++) {
+      const seed = index * 1000 + sample * 7;
+      const variation = this.hash(seed);
+
+      // Break the foam into irregular fragments.
+      if (variation < 0.34) {
+        continue;
+      }
+
+      const x =
+        sample * spacing
+        + this.hash(seed + 1) * spacing * 0.5;
+
+      const y = crest(x);
+
+      const foamWidth =
+        (3 + variation * 11)
+        * perspective
+        * scale;
+
+      const foamHeight =
+        (0.8 + this.hash(seed + 2) * 2)
+        * perspective
+        * scale;
+
+      noStroke();
+
+      // Warm highlights match the sunset colors.
+      fill(255, 239, 209, strength * 160);
+      ellipse(x, y, foamWidth, foamHeight);
+
+      // Smaller fragments trail behind the wave crest.
+      fill(238, 241, 221, strength * 90);
+
+      ellipse(
+        x - 3 * scale,
+        y + (3 + variation * 6) * perspective * scale,
+        foamWidth * 0.55,
+        foamHeight * 0.7
+      );
+
+      // Small spray marks appear during louder passages.
+      const sprayStrength = constrain(
+        (this.level - 0.4) / 0.6,
+        0,
+        1
+      );
+
+      if (sprayStrength > 0 && variation > 0.72) {
+        const lift =
+          (4 + this.hash(seed + 3) * 15)
+          * sprayStrength
+          * perspective
+          * scale;
+
+        fill(
+          255,
+          244,
+          223,
+          strength * sprayStrength * 145
+        );
+
+        ellipse(
+          x + 2 * scale,
+          y - lift,
+          (1 + variation) * perspective * scale,
+          (2 + variation * 2) * perspective * scale
+        );
+      }
+    }
+  }
+
+  drawProtectedForeground() {
+    const context = drawingContext;
+
+    context.save();
+    context.beginPath();
+
+    this.addPolygonPath(context, this.foregroundOutline);
+    context.clip();
+
+    context.globalAlpha = 1;
+
+    context.drawImage(
+      this.painting.canvas,
+      0,
+      0,
+      width,
+      height
+    );
+
+    context.restore();
+  }
+
+  hash(value) {
+    // Deterministic variation avoids random frame-to-frame flicker.
+    const result =
+      Math.sin(value * 127.1 + 311.7) * 43758.5453;
+
+    return result - Math.floor(result);
+  }
 }
