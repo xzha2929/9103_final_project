@@ -41,8 +41,19 @@ function setup() {
 }
 
 function draw() {
-  environment.setWind(map(constrain(mouseX, 0, width), 0, width, -1, 1));
+  let windInput = 0;
 
+  // Hold A to add wind towards the left.
+  if (keyIsDown(65)) {
+    windInput -= 1;
+  }
+
+  // Hold D to add wind towards the right.
+  if (keyIsDown(68)) {
+    windInput += 1;
+  }
+
+  environment.setWind(windInput);
   environment.update();
   environment.display();
   drawStatus();
@@ -62,14 +73,16 @@ function drawStatus() {
   pop();
 }
 
-function mousePressed() {
-  if (mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
-    environment.togglePause();
-  }
-}
 
 function keyPressed() {
+  // Create a new seeded random variation.
   if (key === "r" || key === "R") {
     environment.reset(floor(random(1000, 9999)));
   }
+
+  // Pause or resume the environmental animation.
+  if (key === "p" || key === "P") {
+    environment.togglePause();
+  }
 }
+//when the mouse is pressed, set the wind value based on the mouse position , a and d only provide additional control over the wid direction.
