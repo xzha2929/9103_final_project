@@ -15,6 +15,15 @@ class PerlinEnvironment {
     this.largeCloudTime = 0;
     this.largeCloudSpeed = 1;
     this.wind = 0;
+
+    // Smooth mouse-controlled wind
+    this.targetWind = 0;
+    // Random visual settings
+    this.frontCloudStartX = 0;
+    this.frontCloudBaseScale = 1;
+    this.frontCloudOpacity = 224;
+    this.grassSwayStrength = 5.2;
+
     this.paused = false;
     this.cloudPhase = 0;
     this.whiteCloudPhase = 0;
@@ -23,7 +32,6 @@ class PerlinEnvironment {
     this.waterPhase = 0;
     this.grassPhase = 0;
   }
-
   build() {
     randomSeed(this.seed);
     noiseSeed(this.seed);
@@ -35,15 +43,26 @@ class PerlinEnvironment {
     this.frontCloudPhase = random(1000);
     this.waterPhase = random(1000);
     this.grassPhase = random(1000);
+    // Pressing R creates a new but stable visual variation.
+    this.frontCloudStartX = random(-40, 40);
+    this.frontCloudBaseScale = random(0.92, 1.08);
+    this.frontCloudOpacity = random(190, 240);
+    this.grassSwayStrength = random(4.5, 7);
   }
 
   update() {
-    if (!this.paused) {
-      const seconds = deltaTime / 1000;
-      this.time += seconds;
-      this.largeCloudTime += seconds * this.largeCloudSpeed;
-    }
+  if (!this.paused) {
+    const seconds = deltaTime / 1000;
+
+    // Slowly move towards the mouse-controlled wind value.
+    // This prevents the clouds from jumping suddenly.
+    const windSmoothing = constrain(seconds * 4, 0, 1);
+    this.wind = lerp(this.wind, this.targetWind, windSmoothing);
+
+    this.time += seconds;
+    this.largeCloudTime += seconds * this.largeCloudSpeed;
   }
+}
 
   display() {
     image(this.background, 0, 0, width, height);
@@ -149,25 +168,49 @@ class PerlinEnvironment {
     pop();
   }
 
-  drawFrontClouds() {
-    push();
-    imageMode(CENTER);
+ drawFrontClouds() {
+  push();
+  imageMode(CENTER);
 
-    // Nearest cloud pieces have the clearest travel and depth change.
-    const depthCycle = (sin(this.time * 0.24 + this.frontCloudPhase) + 1) / 2;
-    const easedDepth = depthCycle * depthCycle * (3 - 2 * depthCycle);
-    const depthScale = lerp(0.93, 1.10, easedDepth);
-    const x = lerp(-58, 58, easedDepth) + this.wind * 20;
-    const y =
-      sin(this.time * 0.16 + this.frontCloudPhase) * 12 +
-      map(noise(this.frontCloudPhase + 40, this.time * 0.04), 0, 1, -4, 4);
+  const depthCycle =
+    (sin(this.time * 0.24 + this.frontCloudPhase) + 1) / 2;
 
-    translate(width / 2 + x, height / 2 + y);
-    scale(depthScale);
-    tint(255, 224);
-    image(this.redHighClouds, 0, 0, width, height);
-    pop();
-  }
+  const easedDepth =
+    depthCycle * depthCycle * (3 - 2 * depthCycle);
+
+  // The random seed changes the base size.
+  const depthScale =
+    this.frontCloudBaseScale *
+    lerp(0.93, 1.10, easedDepth);
+
+  // The random seed changes the starting position. Smoothed wind still responds to the mouse.
+  const x =
+    lerp(-58, 58, easedDepth) +
+    this.wind * 20 +
+    this.frontCloudStartX;
+
+  const y =
+    sin(this.time * 0.16 + this.frontCloudPhase) * 12 +
+    map(
+      noise(
+        this.frontCloudPhase + 40,
+        this.time * 0.04
+      ),
+      0,
+      1,
+      -4,
+      4
+    );
+
+  translate(width / 2 + x, height / 2 + y);
+  scale(depthScale);
+
+  // The random seed changes cloud transparency.
+  tint(255, this.frontCloudOpacity);
+
+  image(this.redHighClouds, 0, 0, width, height);
+  pop();
+}
 
   drawWater() {
     const waterOffsetY = 190;
@@ -195,7 +238,7 @@ class PerlinEnvironment {
     for (let sourceX = 0; sourceX < this.grass.width; sourceX += sourceStripWidth) {
       const destinationX = map(sourceX, 0, this.grass.width, 0, width);
       const sway =
-        sin(this.time * 0.85 + sourceX * 0.018 + this.grassPhase) * 5.2 +
+        sin(this.time * 0.85 + sourceX * 0.018 + this.grassPhase) * this.grassSwayStrength
         map(
           noise(this.grassPhase + sourceX * 0.01, this.time * 0.32),
           0,
@@ -273,8 +316,10 @@ class PerlinEnvironment {
   }
 
   setWind(value) {
-    this.wind = value;
-  }
+  // Store the mouse value as a target.
+  // update() will smoothly move towards it.
+  this.targetWind = constrain(value, -1, 1);
+}
 
   setLargeCloudSpeed(value) {
     this.largeCloudSpeed = constrain(value, 0.2, 2);
@@ -284,10 +329,12 @@ class PerlinEnvironment {
     this.paused = !this.paused;
   }
 
-  reset(newSeed) {
-    this.seed = newSeed;
-    this.time = 0;
-    this.largeCloudTime = 0;
-    this.build();
-  }
+ reset(newSeed) {
+  this.seed = newSeed;
+  this.time = 0;
+  this.largeCloudTime = 0;
+  this.wind = 0;
+  this.targetWind = 0;
+  this.build();
+}
 }
