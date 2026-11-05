@@ -20,7 +20,7 @@ let cloudBaseSpeed = 1;
 let gameStarted = false;
 let isDrawing = false;
 
-{
+function preload(){
   img = loadImage("libraries/images.jpeg");
   nestImg = loadImage("libraries/nest.png");
   cloudImg = loadImage("libraries/cloud.png");
@@ -29,9 +29,11 @@ let isDrawing = false;
   birdDown = loadImage("libraries/birddown.png");
   birdMid = loadImage("libraries/birdmid.png");
 }
-
+function setup(){
+  creatCanvas(1000, 800);
+}
+function draw()
 {
-
   image(img, 0, 100, 1000, 750);
   image(nestImg, 660, 150, 350, 280);
   moveClouds();
