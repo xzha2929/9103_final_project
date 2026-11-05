@@ -1,6 +1,7 @@
 let img;
 let nestImg;
 let cloudImg;
+let birdImg;
 let birds = [];// array to hold birds objects.
 let windPath = []; // array to hold the wind path.
 let score = 0;
@@ -12,11 +13,21 @@ let saveBirds = [];
 let cloudX = 0;
 let cloudSpeed = 1;
 let gameOver = false;
+let birdUp;
+let birdDown;
+let birdMid;
+let cloudBaseSpeed = 1;
+let gameStarted = false;
+let isDrawing = false;
 
 function preload(){
   img = loadImage("libraries/images.jpeg");
   nestImg = loadImage("libraries/nest.png");
   cloudImg = loadImage("libraries/cloud.png");
+  birdImg = loadImage("libraries/birds.png");
+  birdUp = loadImage("libraries/birdup.png");
+  birdDown = loadImage("libraries/birddown.png");
+  birdMid = loadImage("libraries/birdmid.png");
 }
 
 function setup(){
@@ -35,7 +46,7 @@ function draw(){
     bird.update();// update the position of the bird and move
     bird.display();// draw the bird on the canvas.
     //calculate distance between bird and nest
-    if (bird.moving === true && gameOver === false){
+    if (gameOver === false){
       checkCloudCollision(bird);
     }
     let distance = dist(
@@ -43,11 +54,17 @@ function draw(){
       goalX, goalY,
     );
 
-    //check if the bird reaches the nest
-    if (distance < goalSize / 2){// check the distance.
+    //check if the bird reaches the nest and the clouds move faster.
+    if (distance < goalSize / 2 && gameOver === false){
       score++;
 
       saveBirds.push(bird);
+      //increase cloud speed after saving a bird
+      if (cloudSpeed > 0){
+        cloudSpeed = cloudBaseSpeed + score * 0.5;
+      }else{
+        cloudSpeed = -(cloudBaseSpeed + score *0.5);
+      }
 
       birds = [];
       windPath = [];
@@ -73,9 +90,24 @@ function draw(){
   if (score === totalBirds){
     drawVictory();
   }
+  if (gameStarted === false){
+    drawInstructions();
+  }
 }
 // create birds when mouse is pressed
 function mousePressed(){
+      //start game button
+    if(gameStarted === false){
+      if(
+        mouseX >= 375 &&
+        mouseX <= 625 &&
+        mouseY >= 640 &&
+        mouseY <= 710
+      ){
+        gameStarted = true;
+      }
+      return;
+    }
   //click try again button, the game begin again.
   if(gameOver === true){
     if(
@@ -129,6 +161,13 @@ function mousePressed(){
 
 //draw the wind path when mouse is dragged
 function mouseDragged(){
+  if (gameStarted === false || gameOver === true){
+    return;
+  }
+  isDrawing = true;
+  for (let bird of birds){
+    bird.moving = false;
+  }
   windPath.push({
     x: mouseX,
     y: mouseY,
@@ -136,7 +175,13 @@ function mouseDragged(){
 }
 //Make the bird fly only after the mouse is released
 function mouseReleased(){
-  if (windPath.length>0){
+  if(gameStarted === false || gameOver === true){
+    return;
+  }
+  
+  isDrawing = false;
+
+  if (windPath.length > 0){
     for(let bird of birds){
       bird.pathIndex = 0;
       bird.moving = true;
@@ -170,9 +215,20 @@ class Bird {
     }
   }
   display(){
-    fill(0);
-    noStroke();
-    circle(this.x, this.y, this.size);
+     let wingFrame = frameCount % 24;
+     let currentBird = birdMid;
+     if (this.moving === true){
+      if(wingFrame < 6){
+        currentBird = birdUp;
+      }else if (wingFrame < 12){
+        currentBird = birdMid;
+      }else if (wingFrame < 18){
+        currentBird = birdDown;
+      }else {
+        currentBird = birdMid;
+      }
+     }
+     image(currentBird, this.x - 20, this.y - 20, 40, 40);
   }
 }
 
@@ -182,7 +238,7 @@ function restartGame(){
   windPath = [];
   score = 0;
   cloudX = 0;
-  cloudSpeed = 1;
+  cloudSpeed = cloudBaseSpeed;
   gameOver = false;
 }
 //draw the UI elements
@@ -254,12 +310,8 @@ function drawVictory(){
 
 function drawSavedBirds(){
   for(let i = 0; i < saveBirds.length; i++){
-
-    fill(40);
-    noStroke();
-
-    circle(875 + i * 12, 285, 12);
-  }
+    image(birdImg, 825 + i * 12, 245, 50, 50);
+}
 }
 
 function drawClouds(){
@@ -268,8 +320,13 @@ function drawClouds(){
 function moveClouds(){
   cloudX += cloudSpeed;
 
-  if (cloudX > 100 || cloudX < -100){
-    cloudSpeed = cloudSpeed * -1;
+  if (cloudX >= 100){
+    cloudX = 100;
+    cloudSpeed = -abs(cloudSpeed);
+  }
+  if (cloudX <= -100){
+    cloudX = -100;
+    cloudSpeed = abs(cloudSpeed);
   }
 }
 
@@ -315,6 +372,42 @@ function drawGameOver(){
   textSize(30);
   textStyle(BOLD);
   text("Try Again", 500, 555);
+
+  pop();
+}
+
+function drawInstructions(){
+  push();
+  noStroke();
+  fill(0, 0, 0, 120);
+  rect(0, 0, 1000, 1000);
+
+  fill(255, 239, 218);
+  rect(200, 220, 600, 550, 30);
+
+  fill(170, 90, 40);
+  textAlign(CENTER, CENTER);
+  textStyle(BOLD);
+  textSize(48);
+  text("Draw the Wind", 500, 295);
+
+  textStyle(NORMAL);
+  textSize(22);
+  text("Help the little birds find their way home!", 500, 355);
+
+  textSize(23);
+  text("1. Click on the left to create a bird.", 500, 430);
+  text("2. Draw a wind path to guide it home.", 500, 480);
+  text("3. Avoid the moving clouds!", 500, 530);
+  text("4. Rescue 5 birds to win!", 500, 580);
+
+  fill(245, 128, 33);
+  rect(375, 640, 250, 70, 20);
+
+  fill(255);
+  textSize(30);
+  textStyle(BOLD);
+  text("Start Game", 500, 675);
 
   pop();
 }
