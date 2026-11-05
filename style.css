@@ -1,0 +1,64 @@
+:root {
+  color-scheme: dark;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #151619;
+  color: #f8f4ed;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at top, #3a2930, #151619 65%);
+}
+
+main {
+  width: min(94vw, 1100px);
+}
+
+#canvas-container {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+  line-height: 0;
+}
+
+canvas {
+  width: 100% !important;
+  height: auto !important;
+  cursor: crosshair;
+}
+
+.instructions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: #d8d0c8;
+}
+
+.instructions span {
+  padding: 11px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.instructions strong {
+  display: block;
+  color: #ffad88;
+  margin-bottom: 3px;
+}
+
+@media (max-width: 760px) {
+  .instructions {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

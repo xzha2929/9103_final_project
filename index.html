@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Perlin Sunset Prototype</title>
+
+    <link rel="stylesheet" href="style.css" />
+
+    <!-- p5.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.10/lib/p5.min.js"></script>
+
+    <!-- Our animation class -->
+    <script src="perlin-environment.js"></script>
+
+    <!-- Main p5 program -->
+    <script src="sketch.js"></script>
+  </head>
+
+  <body>
+    <main>
+      <!-- p5 canvas will be placed here -->
+      <div id="canvas-container"></div>
+
+      <section class="instructions">
+  <span><strong>Hold A / D</strong> — control cloud wind</span>
+  <span><strong>Automatic</strong> — clouds move and the sun rises</span>
+  <span><strong>Press P</strong> — pause or resume</span>
+  <span><strong>Press R</strong> — create a new variation</span>
+</section>
+    </main>
+  </body>
+</html>
