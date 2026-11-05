@@ -341,10 +341,6 @@ function checkCloudCollision(bird){
 function drawGameOver(){
   push();
 
-  noStroke();
-  fill(0, 0, 0, 120);
-  rect(0, 0, 1000, 1000);
-
   fill(255, 239, 218);
   rect(250, 300, 500, 350, 30);
 
