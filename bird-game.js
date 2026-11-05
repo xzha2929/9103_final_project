@@ -273,10 +273,7 @@ pop();
 //create a victory window
 function drawVictory(){
   push();
-  //draw background
-  noStroke();
-  fill(0, 0, 0, 120);
-  rect(0, 0, 1000, 1000);
+
   //victory window
   fill(255, 239, 218);
   rect(250, 300, 500, 350, 30);
@@ -367,9 +364,7 @@ function drawGameOver(){
 
 function drawInstructions(){
   push();
-  noStroke();
-  fill(0, 0, 0, 120);
-  rect(0, 0, 1000, 1000);
+
 
   fill(255, 239, 218);
   rect(200, 220, 600, 550, 30);
