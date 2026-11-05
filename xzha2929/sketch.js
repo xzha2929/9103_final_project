@@ -30,7 +30,7 @@ function preload(){
   birdMid = loadImage("libraries/birdmid.png");
 }
 function setup(){
-  creatCanvas(1000, 800);
+  createCanvas(1000, 800);
 }
 function draw()
 {
