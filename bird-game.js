@@ -20,8 +20,7 @@ let cloudBaseSpeed = 1;
 let gameStarted = false;
 let isDrawing = false;
 
-{
-  img = loadImage("libraries/images.jpeg");
+function preloadBirdGame() {
   nestImg = loadImage("libraries/nest.png");
   cloudImg = loadImage("libraries/cloud.png");
   birdImg = loadImage("libraries/birds.png");
@@ -29,10 +28,8 @@ let isDrawing = false;
   birdDown = loadImage("libraries/birddown.png");
   birdMid = loadImage("libraries/birdmid.png");
 }
-
+function drawBirdGame()
 {
-
-  image(img, 0, 100, 1000, 750);
   image(nestImg, 660, 150, 350, 280);
   moveClouds();
   drawClouds();
@@ -91,7 +88,7 @@ let isDrawing = false;
   }
 }
 // create birds when mouse is pressed
-function mousePressed(){
+function birdMousePressed(){
       //start game button
     if(gameStarted === false){
       if(
@@ -156,7 +153,7 @@ function mousePressed(){
   }
 
 //draw the wind path when mouse is dragged
-function mouseDragged(){
+function birdMouseDragged(){
   if (gameStarted === false || gameOver === true){
     return;
   }
@@ -170,7 +167,7 @@ function mouseDragged(){
   })
 }
 //Make the bird fly only after the mouse is released
-function mouseReleased(){
+function birdMouseReleased(){
   if(gameStarted === false || gameOver === true){
     return;
   }
